@@ -10,4 +10,6 @@
     <string name="error_app_uninstalled">Target app has been uninstalled. Please reconfigure.</string>
     <string name="error_shortcut_invalid">Shortcut is no longer available. Please reconfigure.</string>
     <string name="shortcut_saved">Shortcut saved: %1$s</string>
+    <string name="permission_required_message">This app needs to be set as the default launcher to access shortcuts. Please grant the Home role when prompted.</string>
+    <string name="retry">Retry</string>
 </resources>
