@@ -8,11 +8,16 @@ import android.content.pm.LauncherApps
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Process
+import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 
 class LaunchActivity : Activity() {
+
+    companion object {
+        private const val TAG = "LaunchActivity"
+    }
 
     private lateinit var repo: ShortcutRepository
     private var countDownTimer: CountDownTimer? = null
@@ -60,6 +65,29 @@ class LaunchActivity : Activity() {
     }
 
     private fun launchShortcut() {
+        val intentUri = repo.getIntentUri()
+        if (intentUri != null) {
+            try {
+                val intent = Intent.parseUri(intentUri, Intent.URI_INTENT_SCHEME).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+                finish()
+                return
+            } catch (e: SecurityException) {
+                Toast.makeText(
+                    this,
+                    getString(R.string.error_shortcut_invalid),
+                    Toast.LENGTH_LONG
+                ).show()
+                redirectToConfig()
+                return
+            } catch (e: Exception) {
+                Log.w(TAG, "Intent URI launch failed, falling back to LauncherApps", e)
+                // fall through to LauncherApps fallback
+            }
+        }
+
         val packageName = repo.getPackageName()
         val shortcutId = repo.getShortcutId()
 
