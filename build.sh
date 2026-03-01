@@ -60,7 +60,7 @@ kotlinc \
   -classpath "$ANDROID_JAR:$KOTLIN_STDLIB" \
   -d "$BUILD_DIR/classes" \
   "${KT_SOURCES[@]}" \
-  "$BUILD_DIR/gen/com/example/shortcutproxy/R.java"
+  "$BUILD_DIR/gen/de/codevoid/appshortcutproxy/R.java"
 
 echo "[4/6] Converting to Dex..."
 "$BUILD_TOOLS/d8" \

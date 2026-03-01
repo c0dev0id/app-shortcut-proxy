@@ -1,4 +1,4 @@
-package com.example.shortcutproxy
+package de.codevoid.appshortcutproxy
 
 import android.app.Activity
 import android.content.Context
