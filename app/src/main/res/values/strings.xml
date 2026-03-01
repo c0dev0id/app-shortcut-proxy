@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shortcut Proxy</string>
+    <string name="select_shortcut_title">Select a Shortcut</string>
+    <string name="cancel">Cancel</string>
+    <string name="settings">Change Shortcut</string>
+    <string name="launching">Launching\u2026</string>
+    <string name="no_shortcuts_found">No shortcuts found. Make sure this app has launcher permissions.</string>
+    <string name="error_permission">Permission denied. This app needs launcher-level access to enumerate shortcuts.</string>
+    <string name="error_app_uninstalled">Target app has been uninstalled. Please reconfigure.</string>
+    <string name="error_shortcut_invalid">Shortcut is no longer available. Please reconfigure.</string>
+    <string name="shortcut_saved">Shortcut saved: %1$s</string>
+</resources>

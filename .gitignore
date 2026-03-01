@@ -1,0 +1,9 @@
+# Build outputs
+app/build/
+.gradle/
+local.properties
+*.apk
+
+# IDE files
+.idea/
+*.iml
