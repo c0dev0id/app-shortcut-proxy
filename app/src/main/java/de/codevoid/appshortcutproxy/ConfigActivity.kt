@@ -1,11 +1,13 @@
 package de.codevoid.appshortcutproxy
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.os.Bundle
 import android.os.Process
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -24,7 +26,8 @@ class ConfigActivity : Activity() {
         val packageName: String,
         val shortcutId: String,
         val appLabel: String,
-        val shortcutLabel: String
+        val shortcutLabel: String,
+        val intentUri: String?
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,7 +47,9 @@ class ConfigActivity : Activity() {
         val query = LauncherApps.ShortcutQuery().apply {
             setQueryFlags(
                 LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
-                LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST
+                LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or
+                LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED or
+                LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED_BY_ANY_LAUNCHER
             )
         }
 
@@ -61,12 +66,18 @@ class ConfigActivity : Activity() {
                 val shortcutLabel = info.shortLabel?.toString()
                     ?: info.longLabel?.toString()
                     ?: info.id
+                val intentUri = try {
+                    info.intents?.lastOrNull()?.toUri(Intent.URI_INTENT_SCHEME)
+                } catch (e: Exception) {
+                    null
+                }
                 allItems.add(
                     ShortcutItem(
                         packageName = info.`package`,
                         shortcutId = info.id,
                         appLabel = appLabel,
-                        shortcutLabel = shortcutLabel
+                        shortcutLabel = shortcutLabel,
+                        intentUri = intentUri
                     )
                 )
             }
@@ -95,15 +106,41 @@ class ConfigActivity : Activity() {
             repo.saveShortcut(
                 item.packageName,
                 item.shortcutId,
-                "${item.appLabel}: ${item.shortcutLabel}"
+                "${item.appLabel}: ${item.shortcutLabel}",
+                item.intentUri
             )
-            Toast.makeText(
-                this,
-                getString(R.string.shortcut_saved, item.shortcutLabel),
-                Toast.LENGTH_SHORT
-            ).show()
-            startActivity(Intent(this, LaunchActivity::class.java))
-            finish()
+            if (item.intentUri != null) {
+                showSwitchLauncherDialog()
+            } else {
+                Toast.makeText(
+                    this,
+                    getString(R.string.shortcut_saved, item.shortcutLabel),
+                    Toast.LENGTH_SHORT
+                ).show()
+                startActivity(Intent(this, LaunchActivity::class.java))
+                finish()
+            }
         }
+    }
+
+    private fun showSwitchLauncherDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.shortcut_configured_title))
+            .setMessage(getString(R.string.shortcut_configured_message))
+            .setPositiveButton(getString(R.string.open_home_settings)) { _, _ ->
+                try {
+                    startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+                } catch (e: Exception) {
+                    // ignore if settings screen unavailable
+                }
+                startActivity(Intent(this, LaunchActivity::class.java))
+                finish()
+            }
+            .setNegativeButton(getString(R.string.skip)) { _, _ ->
+                startActivity(Intent(this, LaunchActivity::class.java))
+                finish()
+            }
+            .setCancelable(false)
+            .show()
     }
 }

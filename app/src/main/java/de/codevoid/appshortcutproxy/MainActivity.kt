@@ -20,6 +20,12 @@ class MainActivity : Activity() {
     }
 
     private fun checkPermissionsAndProceed() {
+        val repo = ShortcutRepository(this)
+        if (repo.isConfigured() && repo.getIntentUri() != null) {
+            // Intent URI stored — no launcher permission needed at launch time
+            proceed()
+            return
+        }
         val launcherApps = getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
         if (!launcherApps.hasShortcutHostPermission()) {
             requestShortcutHostPermission()

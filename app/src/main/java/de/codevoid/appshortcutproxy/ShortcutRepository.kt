@@ -9,17 +9,22 @@ class ShortcutRepository(private val context: Context) {
 
     fun isConfigured(): Boolean = prefs.contains(KEY_PACKAGE)
 
-    fun saveShortcut(packageName: String, shortcutId: String, label: String) {
+    fun saveShortcut(packageName: String, shortcutId: String, label: String, intentUri: String? = null) {
         prefs.edit()
             .putString(KEY_PACKAGE, packageName)
             .putString(KEY_SHORTCUT_ID, shortcutId)
             .putString(KEY_LABEL, label)
+            .apply {
+                if (intentUri != null) putString(KEY_INTENT_URI, intentUri)
+                else remove(KEY_INTENT_URI)
+            }
             .apply()
     }
 
     fun getPackageName(): String? = prefs.getString(KEY_PACKAGE, null)
     fun getShortcutId(): String? = prefs.getString(KEY_SHORTCUT_ID, null)
     fun getLabel(): String? = prefs.getString(KEY_LABEL, null)
+    fun getIntentUri(): String? = prefs.getString(KEY_INTENT_URI, null)
 
     fun isTargetAppInstalled(): Boolean {
         val pkg = getPackageName() ?: return false
@@ -40,5 +45,6 @@ class ShortcutRepository(private val context: Context) {
         private const val KEY_PACKAGE = "package_name"
         private const val KEY_SHORTCUT_ID = "shortcut_id"
         private const val KEY_LABEL = "label"
+        private const val KEY_INTENT_URI = "intent_uri"
     }
 }

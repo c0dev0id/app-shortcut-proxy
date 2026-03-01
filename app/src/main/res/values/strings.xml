@@ -11,5 +11,8 @@
     <string name="error_shortcut_invalid">Shortcut is no longer available. Please reconfigure.</string>
     <string name="shortcut_saved">Shortcut saved: %1$s</string>
     <string name="permission_required_message">This app needs to be set as the default launcher to access shortcuts. Please grant the Home role when prompted.</string>
-    <string name="retry">Retry</string>
+    <string name="shortcut_configured_title">Shortcut Configured!</string>
+    <string name="shortcut_configured_message">Your shortcut has been saved. Please switch back to your regular launcher in Settings \u2192 Default Apps \u2192 Home App so this app acts as a proxy.</string>
+    <string name="open_home_settings">Open Settings</string>
+    <string name="skip">Skip</string>
 </resources>
