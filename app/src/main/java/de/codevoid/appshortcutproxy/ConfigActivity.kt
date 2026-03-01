@@ -1,11 +1,10 @@
 package de.codevoid.appshortcutproxy
 
 import android.app.Activity
-import android.content.Context
+import android.content.ComponentName
 import android.content.Intent
-import android.content.pm.LauncherApps
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Process
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,94 +15,136 @@ import android.widget.Toast
 
 class ConfigActivity : Activity() {
 
-    private lateinit var listView: ListView
-    private lateinit var repo: ShortcutRepository
-    private val allItems = mutableListOf<ShortcutItem>()
+    private enum class Step { APP_LIST, ACTIVITY_LIST }
 
-    data class ShortcutItem(
-        val packageName: String,
-        val shortcutId: String,
-        val appLabel: String,
-        val shortcutLabel: String
-    )
+    private lateinit var listView: ListView
+    private lateinit var textTitle: TextView
+    private lateinit var repo: ShortcutRepository
+
+    private val appItems = mutableListOf<AppItem>()
+    private val activityItems = mutableListOf<ActivityItem>()
+    private var currentStep = Step.APP_LIST
+
+    data class AppItem(val packageName: String, val label: String)
+    data class ActivityItem(val packageName: String, val activityName: String, val label: String)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_config)
 
         repo = ShortcutRepository(this)
+        textTitle = findViewById(R.id.textTitle)
         listView = findViewById(R.id.listView)
-        loadShortcuts()
+        loadApps()
     }
 
-    private fun loadShortcuts() {
-        allItems.clear()
-        val launcherApps = getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+    private fun loadApps() {
+        currentStep = Step.APP_LIST
+        textTitle.setText(R.string.select_app_title)
+
         val pm = packageManager
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val resolveInfos = pm.queryIntentActivities(intent, 0)
+            .sortedBy { it.loadLabel(pm).toString().lowercase() }
 
-        val query = LauncherApps.ShortcutQuery().apply {
-            setQueryFlags(
-                LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
-                LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST
-            )
+        appItems.clear()
+        resolveInfos.forEach { ri ->
+            appItems.add(AppItem(
+                packageName = ri.activityInfo.packageName,
+                label = ri.loadLabel(pm).toString()
+            ))
         }
 
-        try {
-            val shortcuts = launcherApps.getShortcuts(query, Process.myUserHandle())
-            shortcuts?.forEach { info ->
-                val appLabel = try {
-                    pm.getApplicationLabel(
-                        pm.getApplicationInfo(info.`package`, 0)
-                    ).toString()
-                } catch (e: Exception) {
-                    info.`package`
-                }
-                val shortcutLabel = info.shortLabel?.toString()
-                    ?: info.longLabel?.toString()
-                    ?: info.id
-                allItems.add(
-                    ShortcutItem(
-                        packageName = info.`package`,
-                        shortcutId = info.id,
-                        appLabel = appLabel,
-                        shortcutLabel = shortcutLabel
-                    )
-                )
-            }
-        } catch (e: SecurityException) {
-            Toast.makeText(this, getString(R.string.error_permission), Toast.LENGTH_LONG).show()
+        if (appItems.isEmpty()) {
+            Toast.makeText(this, getString(R.string.no_apps_found), Toast.LENGTH_LONG).show()
         }
 
-        if (allItems.isEmpty()) {
-            Toast.makeText(this, getString(R.string.no_shortcuts_found), Toast.LENGTH_LONG).show()
-        }
-
-        val adapter = object : ArrayAdapter<ShortcutItem>(this, R.layout.item_shortcut, allItems) {
+        val adapter = object : ArrayAdapter<AppItem>(this, R.layout.item_shortcut, appItems) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                 val view = convertView ?: LayoutInflater.from(context)
                     .inflate(R.layout.item_shortcut, parent, false)
                 val item = getItem(position)!!
-                view.findViewById<TextView>(R.id.textAppName).text = item.appLabel
-                view.findViewById<TextView>(R.id.textShortcutName).text = item.shortcutLabel
+                view.findViewById<TextView>(R.id.textAppName).text = item.label
+                view.findViewById<TextView>(R.id.textShortcutName).text = item.packageName
                 return view
             }
         }
 
         listView.adapter = adapter
         listView.setOnItemClickListener { _, _, position, _ ->
-            val item = allItems[position]
-            repo.saveShortcut(
-                item.packageName,
-                item.shortcutId,
-                "${item.appLabel}: ${item.shortcutLabel}"
-            )
-            Toast.makeText(
-                this,
-                getString(R.string.shortcut_saved, item.shortcutLabel),
-                Toast.LENGTH_SHORT
-            ).show()
-            startActivity(Intent(this, LaunchActivity::class.java))
-            finish()
+            loadActivities(appItems[position])
+        }
+    }
+
+    private fun loadActivities(app: AppItem) {
+        val pm = packageManager
+        val activities = try {
+            pm.getPackageInfo(app.packageName, PackageManager.GET_ACTIVITIES)
+                .activities?.filter { it.exported } ?: emptyList()
+        } catch (e: PackageManager.NameNotFoundException) {
+            emptyList()
+        }
+
+        if (activities.isEmpty()) {
+            Toast.makeText(this, getString(R.string.no_activities_found), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (activities.size == 1) {
+            val ai = activities[0]
+            saveActivity(app.packageName, ai.name, activityLabel(pm, ai))
+            return
+        }
+
+        currentStep = Step.ACTIVITY_LIST
+        textTitle.text = getString(R.string.select_activity_title, app.label)
+
+        activityItems.clear()
+        activities.forEach { ai ->
+            activityItems.add(ActivityItem(
+                packageName = app.packageName,
+                activityName = ai.name,
+                label = activityLabel(pm, ai)
+            ))
+        }
+
+        val adapter = object : ArrayAdapter<ActivityItem>(this, R.layout.item_shortcut, activityItems) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = convertView ?: LayoutInflater.from(context)
+                    .inflate(R.layout.item_shortcut, parent, false)
+                val item = getItem(position)!!
+                view.findViewById<TextView>(R.id.textAppName).text = item.label
+                view.findViewById<TextView>(R.id.textShortcutName).text = item.activityName
+                return view
+            }
+        }
+
+        listView.adapter = adapter
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val item = activityItems[position]
+            saveActivity(item.packageName, item.activityName, item.label)
+        }
+    }
+
+    private fun activityLabel(pm: PackageManager, ai: android.content.pm.ActivityInfo): String =
+        ai.loadLabel(pm).toString().ifEmpty { ai.name }
+
+    private fun saveActivity(packageName: String, activityName: String, label: String) {
+        val intent = Intent().setComponent(ComponentName(packageName, activityName))
+        val intentUri = intent.toUri(Intent.URI_INTENT_SCHEME)
+        repo.saveShortcut(packageName, label, intentUri)
+        Toast.makeText(this, getString(R.string.shortcut_saved, label), Toast.LENGTH_SHORT).show()
+        startActivity(Intent(this, LaunchActivity::class.java))
+        finish()
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (currentStep == Step.ACTIVITY_LIST) {
+            loadApps()
+        } else {
+            @Suppress("DEPRECATION")
+            super.onBackPressed()
         }
     }
 }

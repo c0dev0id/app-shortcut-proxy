@@ -2,12 +2,9 @@ package de.codevoid.appshortcutproxy
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
-import android.content.Context
 import android.content.Intent
-import android.content.pm.LauncherApps
 import android.os.Bundle
 import android.os.CountDownTimer
-import android.os.Process
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -49,7 +46,7 @@ class LaunchActivity : Activity() {
 
             override fun onFinish() {
                 textCountdown.text = getString(R.string.launching)
-                launchShortcut()
+                launchActivity()
             }
         }.start()
     }
@@ -59,11 +56,11 @@ class LaunchActivity : Activity() {
         countDownTimer?.cancel()
     }
 
-    private fun launchShortcut() {
+    private fun launchActivity() {
+        val uri = repo.getIntentUri()
         val packageName = repo.getPackageName()
-        val shortcutId = repo.getShortcutId()
 
-        if (packageName == null || shortcutId == null) {
+        if (uri == null || packageName == null) {
             redirectToConfig()
             return
         }
@@ -78,29 +75,21 @@ class LaunchActivity : Activity() {
             return
         }
 
-        val launcherApps = getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
         try {
-            val query = LauncherApps.ShortcutQuery().apply {
-                setQueryFlags(
-                    LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
-                    LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or
-                    LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED
-                )
-                setPackage(packageName)
-            }
-            val shortcuts = launcherApps.getShortcuts(query, Process.myUserHandle())
-            val target = shortcuts?.find { it.id == shortcutId }
-            if (target != null) {
-                launcherApps.startShortcut(target, null, null)
-                finish()
-            } else {
+            val intent = Intent.parseUri(uri, Intent.URI_INTENT_SCHEME)
+            val component = intent.component
+            if (component == null || component.packageName != packageName) {
                 Toast.makeText(
                     this,
                     getString(R.string.error_shortcut_invalid),
                     Toast.LENGTH_LONG
                 ).show()
                 redirectToConfig()
+                return
             }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            finish()
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(
                 this,
