@@ -5,10 +5,11 @@
     android:orientation="vertical">
 
     <TextView
+        android:id="@+id/textTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp"
-        android:text="@string/select_shortcut_title"
+        android:text="@string/select_app_title"
         android:textSize="18sp"
         android:textStyle="bold" />
 
